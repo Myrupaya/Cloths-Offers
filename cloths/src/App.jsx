@@ -7,6 +7,8 @@ import "./App.css";
 const LIST_FIELDS = {
   credit: ["Eligible Credit Cards", "Eligible Cards"],
   debit: ["Eligible Debit Cards", "Applicable Debit Cards"],
+  upi: ["UPI"],
+  netBanking: ["Net Banking"],
   title: ["Offer Title", "Title", "Offer", "offer"],
   image: ["Image", "Credit Card Image", "Offer Image", "image", "Image URL"],
   link: ["Link", "Offer Link", "link", "URL"],
@@ -28,6 +30,9 @@ const FALLBACK_IMAGE_BY_SITE = {
   myntra:
     "https://assets.myntassets.com/assets/images/2020/6/5/6b25e0b3-9f2d-4f5a-bb59-9968437bf3e11591347451735-myntra-logo.png",
   ajio: "https://assets.ajio.com/static/img/Ajio-Logo.svg",
+  amazon: "https://tse2.mm.bing.net/th/id/OIP.cs6rsE5Ogsa4Hm_2Y6hiPwHaEK?pid=Api&P=0&h=180",
+  flipkart:
+    "https://logosmarcas.net/wp-content/uploads/2020/11/Flipkart-Emblema.png",
   "tata cliq":
     "https://assets.tatacliq.com/medias/sys_master/images/13965856235550.png",
   "nykaa fashion":
@@ -249,9 +254,13 @@ const Disclaimer = () => (
 const ClothesOffers = () => {
   const [creditEntries, setCreditEntries] = useState([]);
   const [debitEntries, setDebitEntries] = useState([]);
+  const [upiEntries, setUpiEntries] = useState([]);
+  const [netBankingEntries, setNetBankingEntries] = useState([]);
 
   const [marqueeCC, setMarqueeCC] = useState([]);
   const [marqueeDC, setMarqueeDC] = useState([]);
+  const [marqueeUPI, setMarqueeUPI] = useState([]);
+  const [marqueeNetBanking, setMarqueeNetBanking] = useState([]);
 
   const [filteredCards, setFilteredCards] = useState([]);
   const [query, setQuery] = useState("");
@@ -261,6 +270,8 @@ const ClothesOffers = () => {
 
   const [myntraOffers, setMyntraOffers] = useState([]);
   const [ajioOffers, setAjioOffers] = useState([]);
+  const [amazonOffers, setAmazonOffers] = useState([]);
+  const [flipkartOffers, setFlipkartOffers] = useState([]);
   const [tataCliqOffers, setTataCliqOffers] = useState([]);
   const [nykaaFashionOffers, setNykaaFashionOffers] = useState([]);
 
@@ -322,6 +333,8 @@ const ClothesOffers = () => {
         const specs = [
           { name: "Myntra.csv", setter: setMyntraOffers },
           { name: "Ajio.csv", setter: setAjioOffers },
+          { name: "amazon.csv", setter: setAmazonOffers },
+          { name: "flipkart.csv", setter: setFlipkartOffers },
           { name: "tata_cliq.csv", setter: setTataCliqOffers },
           { name: "nykaa_fashion.csv", setter: setNykaaFashionOffers },
         ];
@@ -347,11 +360,15 @@ const ClothesOffers = () => {
   useEffect(() => {
     const ccMap = new Map();
     const dcMap = new Map();
+    const upiMap = new Map();
+    const netBankingMap = new Map();
 
     const harvestRows = (rows) => {
       for (const o of rows || []) {
         const cc = splitList(firstField(o, LIST_FIELDS.credit));
         const dc = splitList(firstField(o, LIST_FIELDS.debit));
+        const upi = splitList(firstField(o, LIST_FIELDS.upi));
+        const netBanking = splitList(firstField(o, LIST_FIELDS.netBanking));
 
         for (const raw of cc) {
           if (toNorm(raw) === "all cc") continue;
@@ -365,11 +382,24 @@ const ClothesOffers = () => {
           const baseNorm = toNorm(base);
           if (baseNorm) dcMap.set(baseNorm, dcMap.get(baseNorm) || base);
         }
+        for (const raw of upi) {
+          const base = brandCanonicalize(getBase(raw));
+          const baseNorm = toNorm(base);
+          if (baseNorm) upiMap.set(baseNorm, upiMap.get(baseNorm) || base);
+        }
+        for (const raw of netBanking) {
+          const base = brandCanonicalize(getBase(raw));
+          const baseNorm = toNorm(base);
+          if (baseNorm)
+            netBankingMap.set(baseNorm, netBankingMap.get(baseNorm) || base);
+        }
       }
     };
 
     harvestRows(myntraOffers);
     harvestRows(ajioOffers);
+    harvestRows(amazonOffers);
+    harvestRows(flipkartOffers);
     harvestRows(tataCliqOffers);
     harvestRows(nykaaFashionOffers);
 
@@ -379,7 +409,24 @@ const ClothesOffers = () => {
     setMarqueeDC(
       Array.from(dcMap.values()).sort((a, b) => a.localeCompare(b))
     );
-  }, [myntraOffers, ajioOffers, tataCliqOffers, nykaaFashionOffers]);
+    const upi = Array.from(upiMap.values()).sort((a, b) => a.localeCompare(b));
+    const netBanking = Array.from(netBankingMap.values()).sort((a, b) =>
+      a.localeCompare(b)
+    );
+
+    setMarqueeUPI(upi);
+    setMarqueeNetBanking(netBanking);
+
+    setUpiEntries(upi.map((d) => makeEntry(d, "upi")));
+    setNetBankingEntries(netBanking.map((d) => makeEntry(d, "netbanking")));
+  }, [
+    myntraOffers,
+    ajioOffers,
+    amazonOffers,
+    flipkartOffers,
+    tataCliqOffers,
+    nykaaFashionOffers,
+  ]);
 
   /** Search box */
   const onChangeQuery = (e) => {
@@ -421,8 +468,10 @@ const ClothesOffers = () => {
 
     let cc = scored(creditEntries);
     let dc = scored(debitEntries);
+    let upi = scored(upiEntries);
+    let netBanking = scored(netBankingEntries);
 
-    if (!cc.length && !dc.length) {
+    if (!cc.length && !dc.length && !upi.length && !netBanking.length) {
       setNoMatches(true);
       setSelected(null);
       setFilteredCards([]);
@@ -448,6 +497,8 @@ const ClothesOffers = () => {
       };
       cc = bumpSelectCards(cc);
       dc = bumpSelectCards(dc);
+      upi = bumpSelectCards(upi);
+      netBanking = bumpSelectCards(netBanking);
     }
 
     setFilteredCards([
@@ -455,6 +506,10 @@ const ClothesOffers = () => {
       ...cc,
       ...(dc.length ? [{ type: "heading", label: "Debit Cards" }] : []),
       ...dc,
+      ...(upi.length ? [{ type: "heading", label: "UPI" }] : []),
+      ...upi,
+      ...(netBanking.length ? [{ type: "heading", label: "Net Banking" }] : []),
+      ...netBanking,
     ]);
   };
 
@@ -488,6 +543,15 @@ const ClothesOffers = () => {
           firstFieldByContains(o, "eligible debit") ||
           firstFieldByContains(o, "debit card");
         list = splitList(dcExplicit);
+      } else if (type === "upi") {
+        const upiExplicit =
+          firstField(o, LIST_FIELDS.upi) || firstFieldByContains(o, "upi");
+        list = splitList(upiExplicit);
+      } else if (type === "netbanking") {
+        const nbExplicit =
+          firstField(o, LIST_FIELDS.netBanking) ||
+          firstFieldByContains(o, "net banking");
+        list = splitList(nbExplicit);
       } else {
         const ccExplicit =
           firstField(o, LIST_FIELDS.credit) ||
@@ -530,33 +594,50 @@ const ClothesOffers = () => {
 
   const wMyntra = matchesFor(
     myntraOffers,
-    selected?.type === "debit" ? "debit" : "credit",
+    selected?.type || "credit",
     "Myntra"
   );
   const wAjio = matchesFor(
     ajioOffers,
-    selected?.type === "debit" ? "debit" : "credit",
+    selected?.type || "credit",
     "Ajio"
+  );
+  const wAmazon = matchesFor(
+    amazonOffers,
+    selected?.type || "credit",
+    "Amazon"
+  );
+  const wFlipkart = matchesFor(
+    flipkartOffers,
+    selected?.type || "credit",
+    "Flipkart"
   );
   const wTataCliq = matchesFor(
     tataCliqOffers,
-    selected?.type === "debit" ? "debit" : "credit",
+    selected?.type || "credit",
     "Tata CLiQ"
   );
   const wNykaa = matchesFor(
     nykaaFashionOffers,
-    selected?.type === "debit" ? "debit" : "credit",
+    selected?.type || "credit",
     "Nykaa Fashion"
   );
 
   const seen = new Set();
   const dMyntra = dedupWrappers(wMyntra, seen);
   const dAjio = dedupWrappers(wAjio, seen);
+  const dAmazon = dedupWrappers(wAmazon, seen);
+  const dFlipkart = dedupWrappers(wFlipkart, seen);
   const dTataCliq = dedupWrappers(wTataCliq, seen);
   const dNykaa = dedupWrappers(wNykaa, seen);
 
   const hasAny = Boolean(
-    dMyntra.length || dAjio.length || dTataCliq.length || dNykaa.length
+    dMyntra.length ||
+      dAjio.length ||
+      dAmazon.length ||
+      dFlipkart.length ||
+      dTataCliq.length ||
+      dNykaa.length
   );
 
   /** Offer card UI – scrollable description, button only if link exists */
@@ -644,7 +725,10 @@ const ClothesOffers = () => {
 
   return (
     <div className="App" style={{ fontFamily: "'Libre Baskerville', serif" }}>
-      {(marqueeCC.length > 0 || marqueeDC.length > 0) && (
+      {(marqueeCC.length > 0 ||
+        marqueeDC.length > 0 ||
+        marqueeUPI.length > 0 ||
+        marqueeNetBanking.length > 0) && (
         <div
           style={{
             maxWidth: 1200,
@@ -759,6 +843,96 @@ const ClothesOffers = () => {
               ))}
             </marquee>
           )}
+
+          {(marqueeUPI.length > 0 || marqueeNetBanking.length > 0) && (
+            <marquee
+              direction="left"
+              scrollamount="4"
+              style={{ marginTop: 8, whiteSpace: "nowrap" }}
+            >
+              <strong style={{ marginRight: 10, color: "#1F2D45" }}>
+                UPI/Net Banking:
+              </strong>
+
+              {marqueeUPI.length > 0 && (
+                <strong style={{ marginRight: 8, color: "#1F2D45" }}>UPI:</strong>
+              )}
+              {marqueeUPI.map((name, idx) => (
+                <span
+                  key={`upi-chip-${idx}`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleChipClick(name, "upi")}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" ? handleChipClick(name, "upi") : null
+                  }
+                  style={{
+                    display: "inline-block",
+                    padding: "6px 10px",
+                    border: "1px solid #E0E6EE",
+                    borderRadius: 9999,
+                    marginRight: 8,
+                    background: "#fff",
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                    cursor: "pointer",
+                    fontSize: 14,
+                    lineHeight: 1.2,
+                    userSelect: "none",
+                  }}
+                  onMouseOver={(e) =>
+                    (e.currentTarget.style.background = "#F0F5FF")
+                  }
+                  onMouseOut={(e) =>
+                    (e.currentTarget.style.background = "#fff")
+                  }
+                  title="Click to select this UPI offer type"
+                >
+                  {name}
+                </span>
+              ))}
+
+              {marqueeNetBanking.length > 0 && (
+                <strong style={{ marginRight: 8, color: "#1F2D45" }}>
+                  Net Banking:
+                </strong>
+              )}
+              {marqueeNetBanking.map((name, idx) => (
+                <span
+                  key={`nb-chip-${idx}`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleChipClick(name, "netbanking")}
+                  onKeyDown={(e) =>
+                    e.key === "Enter"
+                      ? handleChipClick(name, "netbanking")
+                      : null
+                  }
+                  style={{
+                    display: "inline-block",
+                    padding: "6px 10px",
+                    border: "1px solid #E0E6EE",
+                    borderRadius: 9999,
+                    marginRight: 8,
+                    background: "#fff",
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                    cursor: "pointer",
+                    fontSize: 14,
+                    lineHeight: 1.2,
+                    userSelect: "none",
+                  }}
+                  onMouseOver={(e) =>
+                    (e.currentTarget.style.background = "#F0F5FF")
+                  }
+                  onMouseOut={(e) =>
+                    (e.currentTarget.style.background = "#fff")
+                  }
+                  title="Click to select this Net Banking offer type"
+                >
+                  {name}
+                </span>
+              ))}
+            </marquee>
+          )}
         </div>
       )}
 
@@ -771,7 +945,7 @@ const ClothesOffers = () => {
           type="text"
           value={query}
           onChange={onChangeQuery}
-          placeholder="Type a Credit or Debit Card to check the clothes offers...."
+          placeholder="Type Credit, Debit, UPI, or Net Banking to check clothes offers...."
           className="dropdown-input"
           style={{
             width: "100%",
@@ -862,6 +1036,28 @@ const ClothesOffers = () => {
             </div>
           )}
 
+          {!!dAmazon.length && (
+            <div className="offer-group">
+              <h2 style={{ textAlign: "center" }}>Offers on Amazon</h2>
+              <div className="offer-grid">
+                {dAmazon.map((w, i) => (
+                  <OfferCard key={`amazon-${i}`} wrapper={w} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!!dFlipkart.length && (
+            <div className="offer-group">
+              <h2 style={{ textAlign: "center" }}>Offers on Flipkart</h2>
+              <div className="offer-grid">
+                {dFlipkart.map((w, i) => (
+                  <OfferCard key={`flipkart-${i}`} wrapper={w} />
+                ))}
+              </div>
+            </div>
+          )}
+
           {!!dTataCliq.length && (
             <div className="offer-group">
               <h2 style={{ textAlign: "center" }}>Offers on Tata CLiQ</h2>
@@ -888,7 +1084,7 @@ const ClothesOffers = () => {
 
       {selected && !hasAny && !noMatches && (
         <p style={{ color: "#d32f2f", textAlign: "center", marginTop: 10 }}>
-          No offer available for this card on clothes websites
+          No offer available for this selection on clothes websites
         </p>
       )}
 
